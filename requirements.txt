@@ -1,3 +1,31 @@
+# # Core dependencies
+# python-dotenv==1.0.0
+# pydantic==2.5.0
+# pydantic-settings==2.1.0
+
+# # Testing
+# pytest==7.4.3
+# pytest-cov==4.1.0
+
+# # Logging
+# loguru==0.7.2
+# ftfy==6.1.3
+
+# # NOW I AM ADDING THE REQUIREMENTS OF THE MODULE 2(TEXT EXTRACTOR FRO THE FILE)
+# PyPDF2==3.0.1
+# pdfplumber==0.10.3
+# python-docx==1.1.0
+# # ===== MODULE 3: OCR Engine =====
+# pytesseract==0.3.10
+# Pillow==10.1.0
+# opencv-python==4.8.1.78
+# numpy==1.24.3
+
+# # MODULE 4: Language Detection
+# langdetect==1.0.9
+
+
+
 # Core dependencies
 python-dotenv==1.0.0
 pydantic==2.5.0
@@ -11,15 +39,28 @@ pytest-cov==4.1.0
 loguru==0.7.2
 ftfy==6.1.3
 
-# NOW I AM ADDING THE REQUIREMENTS OF THE MODULE 2(TEXT EXTRACTOR FRO THE FILE)
+# ===== MODULE 2: Text Extraction from Files =====
 PyPDF2==3.0.1
 pdfplumber==0.10.3
 python-docx==1.1.0
+
 # ===== MODULE 3: OCR Engine =====
+# Tesseract (backup OCR)
 pytesseract==0.3.10
+
+# EasyOCR (primary OCR - better for Urdu)
+easyocr==1.7.0
+torch==2.0.1
+torchvision==0.15.2
+
+# Image processing
 Pillow==10.1.0
 opencv-python==4.8.1.78
 numpy==1.24.3
 
-# MODULE 4: Language Detection
+# ===== MODULE 4: Language Detection =====
 langdetect==1.0.9
+
+# ===== MODULE 5: TTS Engine =====  (Add by the Hamza)
+pyttsx3==2.90
+gTTS==2.4.0
