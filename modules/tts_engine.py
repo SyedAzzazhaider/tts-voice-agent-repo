@@ -1,157 +1,117 @@
-"""
-Module 5: TTS Engine (Integrated from Team Member)
-Converts text to speech with online/offline support
-"""
-
-from dataclasses import dataclass
-from typing import Optional
-import pyttsx3
-from gtts import gTTS
+import asyncio
+import edge_tts
 import os
-import platform
-import subprocess
-from pathlib import Path
-from loguru import logger
-from datetime import datetime
+from playsound import playsound
+import abc
 
-@dataclass
-class TTSResult:
-    """TTS Generation Result"""
-    success: bool
-    audio_path: str
-    language: str
-    mode: str  # 'online' or 'offline'
-    error: Optional[str] = None
+# Abstract base class for TTS backends
+class TTSBackend(abc.ABC):
+    @abc.abstractmethod
+    async def generate(self, text, voice, rate, output_path):
+        pass
+
+class EdgeTTSBackend(TTSBackend):
+    async def generate(self, text, voice, rate, output_path):
+        communicate = edge_tts.Communicate(text, voice, rate=rate)
+        await communicate.save(output_path)
+
+class OpenAITTSBackend(TTSBackend):
+    def __init__(self, api_key=None):
+        from openai import OpenAI
+        self.client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
+
+    async def generate(self, text, voice, rate, output_path):
+        # Note: rate is handled differently or ignored for OpenAI standard TTS
+        response = self.client.audio.speech.create(
+            model="tts-1-hd", # High definition for human-like quality
+            voice=voice or "alloy",
+            input=text
+        )
+        response.stream_to_file(output_path)
+
+class ElevenLabsBackend(TTSBackend):
+    def __init__(self, api_key=None):
+        from elevenlabs.client import ElevenLabs
+        self.client = ElevenLabs(api_key=api_key or os.getenv("ELEVEN_API_KEY"))
+
+    async def generate(self, text, voice, rate, output_path):
+        audio = self.client.generate(
+            text=text,
+            voice=voice or "Rachel",
+            model="eleven_multilingual_v2"
+        )
+        # Handle generator output from ElevenLabs
+        with open(output_path, "wb") as f:
+            for chunk in audio:
+                if chunk:
+                    f.write(chunk)
+
+class XTTSBackend(TTSBackend):
+    def __init__(self):
+        from TTS.api import TTS
+        # This will download the model on first run (~1.5GB)
+        self.tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=False)
+
+    async def generate(self, text, voice, rate, output_path):
+        # For XTTS, voice is usually a path to a reference wav for cloning
+        # or a speaker name from the model's supported list.
+        self.tts.tts_to_file(text=text, speaker=voice or "Ana Helena Tanios", language="en", file_path=output_path)
 
 class TTSEngine:
-    """Text-to-Speech Engine"""
-    
-    def __init__(self, output_dir: str = "assets"):
-        """Initialize TTS Engine - saves directly to assets/ folder"""
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"TTS Engine initialized. Output: {self.output_dir.absolute()}")
-    
-    def generate_speech(self, text: str, language: str = "en") -> TTSResult:
-        """
-        Generate speech from text
+    def __init__(self, backend_type="edge"):
+        self.output_dir = "output_audio"
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
         
-        Args:
-            text: Input text
-            language: 'en' or 'ur'
+        self.backend_type = backend_type.lower()
+        self.backend = self.get_backend(self.backend_type)
         
-        Returns:
-            TTSResult with audio file path
-        """
-        try:
-            if language == "en":
-                return self._speak_offline(text)
-            else:  # Urdu
-                return self._speak_urdu_online(text)
-        
-        except Exception as e:
-            logger.error(f"TTS generation failed: {e}")
-            return TTSResult(
-                success=False,
-                audio_path="",
-                language=language,
-                mode="",
-                error=str(e)
-            )
-    
-    def _speak_offline(self, text: str) -> TTSResult:
-        """English offline TTS using pyttsx3"""
-        try:
-            # Generate unique filename with timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            audio_path = self.output_dir / f"audio_en_{timestamp}.wav"
-            
-            engine = pyttsx3.init()
-            engine.setProperty('rate', 170)
-            engine.save_to_file(text, str(audio_path))
-            engine.runAndWait()
-            
-            # Verify file was created
-            if not audio_path.exists():
-                raise Exception("Audio file not created")
-            
-            logger.info(f"English TTS saved: {audio_path.absolute()}")
-            return TTSResult(
-                success=True,
-                audio_path=str(audio_path.absolute()),
-                language="en",
-                mode="offline"
-            )
-        
-        except Exception as e:
-            logger.error(f"Offline TTS failed: {e}")
-            return TTSResult(
-                success=False,
-                audio_path="",
-                language="en",
-                mode="offline",
-                error=str(e)
-            )
-    
-    def _speak_urdu_online(self, text: str) -> TTSResult:
-        """Urdu online TTS using gTTS"""
-        try:
-            # Generate unique filename with timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            audio_path = self.output_dir / f"audio_ur_{timestamp}.mp3"
-            
-            tts = gTTS(text=text, lang='ur')
-            tts.save(str(audio_path))
-            
-            # Verify file was created
-            if not audio_path.exists():
-                raise Exception("Audio file not created")
-            
-            logger.info(f"Urdu TTS saved: {audio_path.absolute()}")
-            return TTSResult(
-                success=True,
-                audio_path=str(audio_path.absolute()),
-                language="ur",
-                mode="online"
-            )
-        
-        except Exception as e:
-            logger.error(f"Online TTS failed: {e}")
-            return TTSResult(
-                success=False,
-                audio_path="",
-                language="ur",
-                mode="online",
-                error=str(e)
-            )
-    
-    def play_audio(self, audio_path: str):
-        """Play generated audio file"""
-        audio_file = Path(audio_path)
-        
-        # Check if file exists
-        if not audio_file.exists():
-            logger.error(f"Audio file not found: {audio_path}")
-            print(f"❌ File not found: {audio_path}")
-            return
-        
-        try:
-            if platform.system() == "Windows":
-                os.startfile(str(audio_file))
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(['afplay', str(audio_file)], check=True)
-            else:  # Linux
-                subprocess.run(['mpg123', str(audio_file)], check=True)
-            
-            logger.info(f"Playing audio: {audio_file}")
-        
-        except Exception as e:
-            logger.error(f"Playback failed: {e}")
-            print(f"❌ Could not play audio: {e}")
+        # Default voices mapping for Edge TTS
+        self.edge_voices = {
+            "english": "en-US-AriaNeural",
+            "urdu": "ur-PK-AsadNeural"
+        }
 
+    def get_backend(self, backend_type):
+        if backend_type == "openai":
+            return OpenAITTSBackend()
+        elif backend_type == "elevenlabs":
+            return ElevenLabsBackend()
+        elif backend_type == "xtts":
+            return XTTSBackend()
+        else:
+            return EdgeTTSBackend()
 
-# Convenience function
-def generate_speech(text: str, language: str = "en") -> TTSResult:
-    """Quick TTS generation"""
-    engine = TTSEngine()
-    return engine.generate_speech(text, language)
+    async def generate_speech(self, text, language="english", rate="+0%", filename="output.mp3", voice=None):
+        """
+        Generates speech using the selected backend.
+        """
+        output_path = os.path.join(self.output_dir, filename)
+        
+        # Determine voice based on language or provided voice name
+        if not voice and self.backend_type == "edge":
+            voice = self.edge_voices.get(language.lower(), self.edge_voices["english"])
+        
+        await self.backend.generate(text, voice, rate, output_path)
+        return output_path
+
+    def play_audio(self, file_path):
+        """ Plays the audio file. """
+        if os.path.exists(file_path):
+            print(f"Playing: {file_path}")
+            playsound(file_path)
+        else:
+            print(f"Error: File {file_path} not found.")
+
+async def main():
+    # Example using Edge TTS (Current)
+    tts = TTSEngine(backend_type="edge")
+    print("Generating Edge TTS speech...")
+    en_file = await tts.generate_speech("Testing the legacy edge engine.", language="english")
+    tts.play_audio(en_file)
+    
+    # Note: XTTS, OpenAI, and ElevenLabs would require API keys or downloading large models.
+    # We provide them as options for the user.
+
+if __name__ == "__main__":
+    asyncio.run(main())
