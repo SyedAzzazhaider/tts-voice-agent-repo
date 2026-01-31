@@ -1,0 +1,5 @@
+# Member 5 - ABBAS: Backend Integration & API dependencies
+# Install: pip install -r api_requirements.txt
+
+flask>=2.3.0
+flask-cors>=4.0.0

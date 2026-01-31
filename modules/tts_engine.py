@@ -1,7 +1,6 @@
 import asyncio
 import edge_tts
 import os
-from playsound import playsound
 import abc
 
 # Abstract base class for TTS backends
@@ -96,12 +95,16 @@ class TTSEngine:
         return output_path
 
     def play_audio(self, file_path):
-        """ Plays the audio file. """
-        if os.path.exists(file_path):
+        """Plays the audio file. Optional: install 'playsound' for CLI playback."""
+        if not os.path.exists(file_path):
+            print(f"Error: File {file_path} not found.")
+            return
+        try:
+            from playsound import playsound
             print(f"Playing: {file_path}")
             playsound(file_path)
-        else:
-            print(f"Error: File {file_path} not found.")
+        except ImportError:
+            print(f"Audio saved: {file_path} (install 'playsound' for playback)")
 
 async def main():
     # Example using Edge TTS (Current)
