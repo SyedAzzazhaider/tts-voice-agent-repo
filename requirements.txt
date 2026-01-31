@@ -50,13 +50,13 @@ pytesseract==0.3.10
 
 # EasyOCR (primary OCR - better for Urdu)
 easyocr==1.7.0
-torch==2.0.1
-torchvision==0.15.2
+torch>=2.6.0
+torchvision>=0.19.0
 
-# Image processing
-Pillow==10.1.0
-opencv-python==4.8.1.78
-numpy==1.24.3
+# Image processing (flexible versions for modern Python)
+Pillow>=10.2.0
+opencv-python>=4.8.0
+numpy>=1.24.0,<3
 
 # ===== MODULE 4: Language Detection =====
 langdetect==1.0.9
@@ -101,9 +101,9 @@ python-docx==1.1.0        # MS Word (.docx) file processing
 # Extracts text from images and scanned documents.
 # ==========================================
 pytesseract==0.3.10       # Python wrapper for Tesseract OCR engine
-Pillow==10.1.0            # Image manipulation library
-opencv-python==4.8.1.78   # Image preprocessing for better OCR accuracy
-numpy==1.24.3             # Numerical operations for image data
+Pillow>=10.2.0            # Image manipulation library
+opencv-python>=4.8.0      # Image preprocessing for better OCR accuracy
+numpy>=1.24.0,<3          # Numerical operations for image data
 
 # ==========================================
 # MODULE 4: Language Detection

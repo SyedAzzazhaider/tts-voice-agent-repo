@@ -1,0 +1,25 @@
+# Minimal deps to run the API (text + file + TTS). No OCR/torch = no Rust needed.
+# Use when: pip install -r requirements.txt fails (e.g. Python 3.13, Rust not installed).
+# OCR endpoints will return "OCR not available"; install full requirements.txt for OCR.
+
+# Core
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+loguru>=0.7.2
+ftfy>=6.1.3
+
+# Module 2: File extraction (PDF/DOCX)
+PyPDF2>=3.0.1
+pdfplumber>=0.10.0
+python-docx>=1.1.0
+
+# Module 4: Language detection
+langdetect>=1.0.9
+
+# TTS (Edge TTS; playback optional – install playsound for CLI play)
+edge-tts
+
+# API (Member 5)
+flask>=2.3.0
+flask-cors>=4.0.0
