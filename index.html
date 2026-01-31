@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Multilingual TTS Voice Agent</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Noto+Nastaliq+Urdu&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>🎤 Text-to-Speech Voice Agent</h1>
+    <p class="subtitle">English & Urdu Supported</p>
+
+    <!-- Text Input -->
+    <textarea placeholder="Type your text here (English / اردو)..."></textarea>
+
+    <div class="or">OR</div>
+
+    <!-- File Upload -->
+    <input type="file" accept=".pdf,.docx,.png,.jpg,.jpeg">
+
+    <!-- Detected Language -->
+    <div class="language-box">
+        Detected Language: <span id="lang">Auto</span>
+    </div>
+
+    <!-- Buttons -->
+    <div class="buttons">
+        <button class="listen-btn">🔊 Listen</button>
+        <button class="clear-btn">❌ Clear</button>
+    </div>
+
+    <!-- Audio Player -->
+    <audio controls>
+        <source src="" type="audio/mpeg">
+        Your browser does not support audio.
+    </audio>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const textarea = document.querySelector('textarea');
+    const fileInput = document.querySelector('input[type="file"]');
+    const listenBtn = document.querySelector('.listen-btn');
+    const clearBtn = document.querySelector('.clear-btn');
+    const langSpan = document.getElementById('lang');
+    const audio = document.querySelector('audio');
+
+    async function callPipelineWithText(text) {
+        const res = await fetch('/api/v1/pipeline', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ input_type: 'text', text }),
+        });
+        return res.json();
+    }
+
+    async function callPipelineWithFile(file) {
+        const form = new FormData();
+        const isImage = file.type.startsWith('image/');
+        form.append('input_type', isImage ? 'image' : 'file');
+        form.append(isImage ? 'image' : 'file', file, file.name);
+        const res = await fetch('/api/v1/pipeline', { method: 'POST', body: form });
+        return res.json();
+    }
+
+    listenBtn.addEventListener('click', async () => {
+        listenBtn.disabled = true;
+        try {
+            const text = (textarea.value || '').trim();
+            let result;
+            if (text) {
+                result = await callPipelineWithText(text);
+            } else if (fileInput.files && fileInput.files[0]) {
+                result = await callPipelineWithFile(fileInput.files[0]);
+            } else {
+                alert('Please enter text or select a file/image.');
+                return;
+            }
+
+            if (!result || !result.success) {
+                alert('Error: ' + (result?.error || 'Unknown'));
+                return;
+            }
+
+            if (result.language_name) langSpan.textContent = result.language_name;
+            // audio_url is returned by the pipeline
+            if (result.audio_url) {
+                audio.src = result.audio_url;
+                audio.load();
+                audio.play().catch(()=>{});
+            }
+        } catch (e) {
+            alert('Request failed: ' + e.message);
+        } finally {
+            listenBtn.disabled = false;
+        }
+    });
+
+    clearBtn.addEventListener('click', () => {
+        textarea.value = '';
+        fileInput.value = '';
+        langSpan.textContent = 'Auto';
+        audio.pause();
+        audio.src = '';
+    });
+});
+</script>
+
+</body>
+</html>

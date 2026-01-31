@@ -20,6 +20,9 @@ def create_app():
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH_MB * 1024 * 1024
 
+    # Project root (so we can serve local frontend files like index.html, style.css)
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
     # CORS for frontend (enable when frontend is added)
     try:
         from flask_cors import CORS
@@ -32,12 +35,24 @@ def create_app():
     # --- Root (so GET / doesn't 404) ---
     @app.route("/", methods=["GET"])
     def index():
+        # If a local `index.html` exists in the project root, serve it as the frontend.
+        index_file = PROJECT_ROOT / "index.html"
+        if index_file.is_file():
+            return send_from_directory(str(PROJECT_ROOT), "index.html")
         return jsonify({
             "service": "TTS Voice Agent API",
             "docs": "See api/README_MEMBER5.md",
             "health": "/api/v1/health",
             "pipeline": "POST /api/v1/pipeline (input_type: text|file|image)",
         })
+
+    # Serve local stylesheet if present at project root (`/style.css`)
+    @app.route("/style.css", methods=["GET"])
+    def serve_style():
+        css_file = PROJECT_ROOT / "style.css"
+        if css_file.is_file():
+            return send_from_directory(str(PROJECT_ROOT), "style.css")
+        return ("", 404)
 
     # --- Health / readiness ---
     @app.route("/api/v1/health", methods=["GET"])
