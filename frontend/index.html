@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Multilingual TTS Voice Agent</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Noto+Nastaliq+Urdu&display=swap" rel="stylesheet">
+
+    <!-- CSS - Fixed path -->
+    <link rel="stylesheet" href="/frontend/style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>🎤 Text-to-Speech Voice Agent</h1>
+    <p class="subtitle">English & Urdu Supported</p>
+
+    <!-- Text Input -->
+    <textarea placeholder="Type your text here (English / اردو)..."></textarea>
+
+    <div class="or">OR</div>
+
+    <!-- File Upload -->
+    <input type="file" accept=".pdf,.docx,.png,.jpg,.jpeg">
+
+    <!-- Detected Language -->
+    <div class="language-box">
+        Detected Language: <span id="lang">Auto</span>
+    </div>
+
+    <!-- Buttons -->
+    <div class="buttons">
+        <button class="listen-btn">🔊 Listen</button>
+        <button class="clear-btn">❌ Clear</button>
+    </div>
+
+    <!-- Audio Player -->
+    <audio controls>
+        <source src="" type="audio/mpeg">
+        Your browser does not support audio.
+    </audio>
+</div>
+
+<!-- JavaScript - Fixed path -->
+<script src="/frontend/script.js"></script>
+
+</body>
+</html>

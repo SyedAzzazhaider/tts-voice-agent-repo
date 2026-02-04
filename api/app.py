@@ -37,12 +37,43 @@ def create_app():
             "docs": "See api/README_MEMBER5.md",
             "health": "/api/v1/health",
             "pipeline": "POST /api/v1/pipeline (input_type: text|file|image)",
+            "frontend": "/app (Open web interface)",
         })
+
+    # --- Serve Frontend (HTML/CSS/JS) ---
+    @app.route("/frontend/<path:filename>", methods=["GET"])
+    def serve_frontend(filename):
+        """Serve frontend files (HTML, CSS, JS)."""
+        frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+        return send_from_directory(frontend_dir, filename)
+
+    @app.route("/app", methods=["GET"])
+    def serve_app():
+        """Serve main frontend interface."""
+        frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+        return send_from_directory(frontend_dir, "index.html")
 
     # --- Health / readiness ---
     @app.route("/api/v1/health", methods=["GET"])
     def health():
         return jsonify({"status": "ok", "service": "TTS Voice Agent API"})
+
+    # --- Global Error Handler (JSON instead of HTML) ---
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        """Return JSON instead of HTML for unhandled errors."""
+        # Pass through HTTP errors if they are already JSON aware (optional)
+        # But force JSON for 500s
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):
+             return jsonify({"success": False, "error": str(e)}), e.code
+        
+        # Generic 500
+        print(f"❌ INTERNAL ERROR: {e}")
+        return jsonify({
+            "success": False, 
+            "error": f"Internal Server Error: {str(e)}"
+        }), 500
 
     # --- Step-by-step endpoints (for frontend to call individually) ---
 
@@ -76,7 +107,15 @@ def create_app():
             file_path = (data.get("file_path") or "").strip()
         if not file_path or not os.path.isfile(file_path):
             return jsonify({"success": False, "error": "Missing file upload or valid file_path"}), 400
-        result = service.get_text_from_file(file_path)
+        try:
+            result = service.get_text_from_file(file_path)
+        finally:
+            # Cleanup temp upload if it was uploaded in this request
+            if "file" in request.files and file_path and os.path.exists(file_path) and "temp" in file_path:
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
         return jsonify(result)
 
     @app.route("/api/v1/extract/image", methods=["POST"])
@@ -100,7 +139,15 @@ def create_app():
         if not image_path or not os.path.isfile(image_path):
             return jsonify({"success": False, "error": "Missing image upload or valid image_path"}), 400
         lang = (request.get_json(silent=True) or request.form or {}).get("language", "mixed")
-        result = service.get_text_from_image(image_path, language=lang)
+        try:
+            result = service.get_text_from_image(image_path, language=lang)
+        finally:
+            # Cleanup temp upload
+            if "image" in request.files and image_path and os.path.exists(image_path) and "temp" in image_path:
+                try:
+                    os.remove(image_path)
+                except Exception:
+                    pass
         return jsonify(result)
 
     @app.route("/api/v1/language/detect", methods=["POST"])
@@ -186,12 +233,26 @@ def create_app():
         if input_type not in ("text", "file", "image"):
             return jsonify({"success": False, "error": "input_type must be: text, file, or image"}), 400
 
-        result = service.run_pipeline(
-            input_type=input_type,
-            text=text or None,
-            file_path=file_path or None,
-            image_path=image_path or None,
-        )
+        try:
+            result = service.run_pipeline(
+                input_type=input_type,
+                text=text or None,
+                file_path=file_path or None,
+                image_path=image_path or None,
+            )
+        finally:
+            # Cleanup temp files
+            if input_type == "file" and file_path and os.path.exists(file_path) and "temp" in file_path:
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+            if input_type == "image" and image_path and os.path.exists(image_path) and "temp" in image_path:
+                try:
+                    os.remove(image_path)
+                except Exception:
+                    pass
+
         if not result.get("success"):
             return jsonify(result), 400
         return jsonify(result)
